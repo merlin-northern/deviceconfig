@@ -239,6 +239,198 @@ func TestInsertDevice(t *testing.T) {
 	}
 }
 
+func TestGetDevice(t *testing.T) {
+	t.Parallel()
+	deviceID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte("mender.io"))
+	testCases := []struct {
+		Name string
+
+		CTX          context.Context
+		Devices      []model.Device
+		FoundDevices []model.Device
+
+		Error error
+	}{
+		{
+			Name: "ok",
+
+			Devices: []model.Device{
+				{
+					ID: deviceID,
+					DesiredAttributes: []model.Attribute{
+						{
+							Key:   "key0",
+							Value: "value0",
+						},
+					},
+					CurrentAttributes: []model.Attribute{
+						{
+							Key:   "key2",
+							Value: "value2",
+						},
+					},
+					UpdatedTS: time.Now(),
+				},
+			},
+			FoundDevices: []model.Device{
+				{
+					ID: deviceID,
+					DesiredAttributes: []model.Attribute{
+						{
+							Key:   "key0",
+							Value: "value0",
+						},
+					},
+					CurrentAttributes: []model.Attribute{
+						{
+							Key:   "key2",
+							Value: "value2",
+						},
+					},
+					UpdatedTS: time.Now(),
+				},
+			},
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			var err error
+
+			ds := GetTestDataStore(t)
+			if tc.CTX == nil {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancel()
+				tc.CTX = ctx
+				defer ds.DropDatabase(tc.CTX)
+			}
+			for _, dev := range tc.Devices {
+				err = ds.InsertDevice(tc.CTX, dev)
+				if err != nil {
+					break
+				}
+			}
+
+			for _, dev := range tc.Devices {
+				d, err := ds.GetDevice(tc.CTX, dev.ID)
+				assert.NoError(t, err)
+				d.UpdatedTS = time.Unix(1, 0)
+				dev.UpdatedTS = time.Unix(1, 0)
+				assert.Equal(t, d, dev)
+			}
+		})
+	}
+}
+
+func TestUpsertExpectedConfiguration(t *testing.T) {
+	t.Parallel()
+	deviceID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte("mender.io"))
+	testCases := []struct {
+		Name string
+
+		CTX            context.Context
+		Devices        []model.Device
+		UpdatedDevices []model.Device
+
+		Error error
+	}{
+		{
+			Name: "ok new expected set",
+
+			Devices: []model.Device{
+				{
+					ID:        deviceID,
+					UpdatedTS: time.Now(),
+				},
+			},
+
+			UpdatedDevices: []model.Device{
+				{
+					ID: deviceID,
+					DesiredAttributes: []model.Attribute{
+						{
+							Key:   "key0",
+							Value: "value0",
+						},
+					},
+					UpdatedTS: time.Now(),
+				},
+			},
+		},
+
+		{
+			Name: "ok removed expected",
+
+			Devices: []model.Device{
+				{
+					ID: deviceID,
+					DesiredAttributes: []model.Attribute{
+						{
+							Key:   "key0",
+							Value: "value0",
+						},
+					},
+					UpdatedTS: time.Now(),
+				},
+			},
+
+			UpdatedDevices: []model.Device{
+				{
+					ID:                deviceID,
+					DesiredAttributes: []model.Attribute{},
+					UpdatedTS:         time.Now(),
+				},
+			},
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			var err error
+
+			ds := GetTestDataStore(t)
+			if tc.CTX == nil {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancel()
+				tc.CTX = ctx
+				defer ds.DropDatabase(tc.CTX)
+			}
+
+			for _, dev := range tc.Devices {
+				err = ds.UpsertExpectedConfiguration(tc.CTX, dev)
+				if err != nil {
+					break
+				}
+			}
+			for _, dev := range tc.Devices {
+				d, err := ds.GetDevice(tc.CTX, dev.ID)
+				assert.NoError(t, err)
+				assert.Equal(t, dev.ID, d.ID)
+				assert.Equal(t, dev.DesiredAttributes, d.DesiredAttributes)
+				assert.Equal(t, dev.CurrentAttributes, d.CurrentAttributes)
+			}
+
+			for _, dev := range tc.UpdatedDevices {
+				err = ds.UpsertExpectedConfiguration(tc.CTX, dev)
+				if err != nil {
+					break
+				}
+			}
+			for _, dev := range tc.UpdatedDevices {
+				d, err := ds.GetDevice(tc.CTX, dev.ID)
+				assert.NoError(t, err)
+				assert.Equal(t, dev.ID, d.ID)
+				assert.Equal(t, dev.DesiredAttributes, d.DesiredAttributes)
+				assert.Equal(t, dev.CurrentAttributes, d.CurrentAttributes)
+			}
+
+			assert.NoError(t, err)
+		})
+	}
+}
+
 func TestDeleteDevice(t *testing.T) {
 	t.Parallel()
 

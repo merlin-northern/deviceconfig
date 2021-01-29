@@ -70,6 +70,36 @@ func TestProvisionDevice(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetDevice(t *testing.T) {
+	t.Parallel()
+	ctx := context.TODO()
+	dev := model.NewDevice{
+		ID: uuid.NewSHA1(uuid.NameSpaceDNS, []byte("mender.io")),
+	}
+	device := model.Device{
+		ID: uuid.NewSHA1(uuid.NameSpaceDNS, []byte("mender.io")),
+	}
+	deviceMatcher := mock.MatchedBy(func(d model.Device) bool {
+		if !assert.Equal(t, dev.ID, d.ID) {
+			return false
+		}
+		return assert.WithinDuration(t, time.Now(), d.UpdatedTS, time.Minute)
+	})
+
+	ds := new(mstore.DataStore)
+	defer ds.AssertExpectations(t)
+	ds.On("InsertDevice", ctx, deviceMatcher).Return(nil)
+	ds.On("GetDevice", ctx, dev.ID).Return(device, nil)
+
+	app := New(ds, Config{})
+	err := app.ProvisionDevice(ctx, dev)
+	assert.NoError(t, err)
+
+	d, err := app.GetDevice(ctx, dev.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, dev.ID, d.ID)
+}
+
 func TestDecommissionDevice(t *testing.T) {
 	t.Parallel()
 
@@ -82,5 +112,44 @@ func TestDecommissionDevice(t *testing.T) {
 
 	app := New(ds, Config{})
 	err := app.DecommissionDevice(ctx, devID)
+	assert.NoError(t, err)
+}
+
+func TestConfigurationSet(t *testing.T) {
+	t.Parallel()
+	ctx := context.TODO()
+	dev := model.NewDevice{
+		ID: uuid.NewSHA1(uuid.NameSpaceDNS, []byte("mender.io")),
+	}
+	deviceMatcher := mock.MatchedBy(func(d model.Device) bool {
+		if !assert.Equal(t, dev.ID, d.ID) {
+			return false
+		}
+		return assert.WithinDuration(t, time.Now(), d.UpdatedTS, time.Minute)
+	})
+
+	ds := new(mstore.DataStore)
+	defer ds.AssertExpectations(t)
+	ds.On("InsertDevice", ctx, deviceMatcher).Return(nil)
+	ds.On("UpsertExpectedConfiguration", ctx, deviceMatcher).Return(nil)
+
+	app := New(ds, Config{})
+	err := app.ProvisionDevice(ctx, dev)
+	assert.NoError(t, err)
+
+	err = app.ConfigurationSet(ctx, dev.ID, model.Configuration{
+		Expected: []model.Attribute{
+			{
+				Key:   "some0",
+				Value: "some2",
+			},
+		},
+		Actual: []model.Attribute{
+			{
+				Key:   "some3",
+				Value: "some5",
+			},
+		},
+	})
 	assert.NoError(t, err)
 }
