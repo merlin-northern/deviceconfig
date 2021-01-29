@@ -22,14 +22,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Configuration struct {
+	Expected []Attribute `bson:"expected,omitempty" json:"expected"`
+	Actual   []Attribute `bson:"actual,omitempty" json:"actual"`
+}
+
 type Device struct {
 	// ID is the device id assigned by deviceauth
 	ID uuid.UUID `bson:"_id" json:"id"`
 
 	// DesiredAttributes is the configured attributes for the device.
-	DesiredAttributes []Attribute `bson:"desired,omitempty" json:"desired"`
+	DesiredAttributes []Attribute `bson:"expected,omitempty" json:"expected"`
 	// CurrentAttributes is the configuration reported by the device.
-	CurrentAttributes []Attribute `bson:"current,omitempty" json:"current"`
+	CurrentAttributes []Attribute `bson:"actual,omitempty" json:"actual"`
 
 	// UpdatedTS holds the timestamp for when the desired state changed,
 	// including when the object was created.

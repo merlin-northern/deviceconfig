@@ -20,7 +20,7 @@ import (
 
 type Attribute struct {
 	Key   string      `json:"key" bson:"key"`
-	Value interface{} `json:"value" bson:"key"`
+	Value interface{} `json:"value" bson:"value"`
 }
 
 func (attr Attribute) Validate() error {

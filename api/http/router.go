@@ -38,6 +38,8 @@ const (
 	URITenantDevices = "/tenants/:tenant_id/devices"
 	URITenantDevice  = "/tenants/:tenant_id/devices/:device_id"
 
+	URIConfiguration = "/config/devices/:device_id"
+
 	URIAlive  = "/alive"
 	URIHealth = "/health"
 )
@@ -58,6 +60,10 @@ func NewRouter(app app.App) http.Handler {
 	router.Use(accesslog.Middleware())
 	// requestid attaches X-Men-Requestid header to context
 	router.Use(requestid.Middleware())
+	router.Use(identity.Middleware(
+		identity.NewMiddlewareOptions().
+			SetPathRegex(`^/api/management/v[0-9]/`),
+	))
 
 	intrnlAPI := NewInternalAPI(app)
 	intrnlGrp := router.Group(URIInternal)
@@ -69,8 +75,12 @@ func NewRouter(app app.App) http.Handler {
 	intrnlGrp.POST(URITenantDevices, intrnlAPI.ProvisionDevice)
 	intrnlGrp.DELETE(URITenantDevice, intrnlAPI.DecommissionDevice)
 
-	// mgmtAPI := NewManagementAPI(app)
+	mgmtAPI := NewManagementAPI(app)
 	mgmtGrp := router.Group(URIManagement)
+
+	mgmtGrp.GET(URIConfiguration, mgmtAPI.ConfigurationGet)
+	mgmtGrp.PUT(URIConfiguration, mgmtAPI.ConfigurationSet)
+
 	// identity middleware for collecting JWT claims into request Context.
 	mgmtGrp.Use(identity.Middleware())
 	// cors middleware for checking origin headers.

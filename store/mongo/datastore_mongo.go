@@ -150,6 +150,34 @@ func (db *MongoStore) InsertDevice(ctx context.Context, dev model.Device) error 
 	return errors.Wrap(err, "mongo: failed to store device configuration")
 }
 
+func (db *MongoStore) UpsertExpectedConfiguration(ctx context.Context, dev model.Device) error {
+	if err := dev.Validate(); err != nil {
+		return err
+	}
+	collDevs := db.Database(ctx).Collection(CollDevices)
+
+	fltr := bson.D{{
+		Key:   "_id",
+		Value: dev.ID,
+	}}
+
+	update := bson.M{
+		"$set": bson.D{
+			{
+				Key:   "expected",
+				Value: dev.DesiredAttributes,
+			},
+		},
+	}
+
+	_, err := collDevs.UpdateOne(ctx, fltr, update, mopts.Update().SetUpsert(true))
+	if IsDuplicateKeyErr(err) {
+		return store.ErrDeviceAlreadyExists
+	}
+
+	return errors.Wrap(err, "mongo: failed to store device configuration")
+}
+
 func (db *MongoStore) DeleteDevice(ctx context.Context, devID uuid.UUID) error {
 	collDevs := db.Database(ctx).Collection(CollDevices)
 
@@ -163,4 +191,27 @@ func (db *MongoStore) DeleteDevice(ctx context.Context, devID uuid.UUID) error {
 		return errors.Wrap(store.ErrDeviceNoExist, "mongo")
 	}
 	return errors.Wrap(err, "mongo: failed to delete device configuration")
+}
+
+func (db *MongoStore) GetDevice(ctx context.Context, devID uuid.UUID) (model.Device, error) {
+	collDevs := db.Database(ctx).Collection(CollDevices)
+
+	fltr := bson.D{{
+		Key:   "_id",
+		Value: devID,
+	}}
+	res := collDevs.FindOne(ctx, fltr)
+
+	var device model.Device
+
+	if res == nil {
+		return device, errors.Wrap(store.ErrDeviceNoExist, "mongo")
+	}
+
+	err := res.Decode(&device)
+	if err != nil {
+		return device, errors.Wrap(store.ErrDeviceNoExist, "mongo")
+	}
+
+	return device, nil
 }
