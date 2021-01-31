@@ -43,21 +43,16 @@ class TestManagementConfig:
         # get the configuration (empty)
         r = client.get_key_value_pair_store(device_id)
         data = r.to_dict()
-        assert {
-            "id": device_id,
-            "actual": None,
-            "expected": None,
-            "report_ts": "0001-01-01T00:00:00Z",
-        } == {k: data[k] for k in ("id", "actual", "expected", "report_ts")}
+        assert {"actual": None, "expected": None,} == {
+            k: data[k] for k in ("actual", "expected")
+        }
         #
         # set the initial configuration
         configuration = {
-            "expected": [
-                {"key": "key", "value": "value"},
-                {"key": "another-key", "value": "another-value"},
-                #  {"key": "empty-key", "value": ""},
-                {"key": "dollar-key", "value": "$"},
-            ],
+            "key": "value",
+            "another-key": "another-value",
+            #   "empty-key": "",
+            "dollar-key": "$",
         }
         r = client.store_a_set_of_key_value_pairs_with_http_info(
             device_id, inline_object=configuration, _preload_content=False
@@ -65,32 +60,26 @@ class TestManagementConfig:
         assert r.status == 201
         # data = r.to_dict()
         # assert {
-        #     "id": device_id,
         #     "actual": None,
         #     "expected": None,
-        #     "report_ts": "0001-01-01T00:00:00Z",
-        # } == {k: data[k] for k in ("id", "actual", "expected", "report_ts")}
+        # } == {k: data[k] for k in ("actual", "expected")}
         #
         # get the configuration
         r = client.get_key_value_pair_store(device_id)
         data = r.to_dict()
         assert {
-            "id": device_id,
             "actual": None,
-            "expected": [
-                {"key": "key", "value": "value"},
-                {"key": "another-key", "value": "another-value"},
-                {"key": "dollar-key", "value": "$"},
-            ],
-            "report_ts": "0001-01-01T00:00:00Z",
-        } == {k: data[k] for k in ("id", "actual", "expected", "report_ts")}
+            "expected": {
+                "key": "value",
+                "another-key": "another-value",
+                "dollar-key": "$",
+            },
+        } == {k: data[k] for k in ("actual", "expected")}
         #
         # replace the configuration
         configuration = {
-            "expected": [
-                {"key": "key", "value": "update-value"},
-                {"key": "additional-key", "value": '"'},
-            ],
+            "key": "update-value",
+            "additional-key": '"',
         }
         r = client.store_a_set_of_key_value_pairs_with_http_info(
             device_id, inline_object=configuration, _preload_content=False
@@ -101,14 +90,9 @@ class TestManagementConfig:
         r = client.get_key_value_pair_store(device_id)
         data = r.to_dict()
         assert {
-            "id": device_id,
             "actual": None,
-            "expected": [
-                {"key": "key", "value": "update-value"},
-                {"key": "additional-key", "value": '"'},
-            ],
-            "report_ts": "0001-01-01T00:00:00Z",
-        } == {k: data[k] for k in ("id", "actual", "expected", "report_ts")}
+            "expected": {"key": "update-value", "additional-key": '"',},
+        } == {k: data[k] for k in ("actual", "expected")}
         #
         # remove the configuration
         configuration = {
@@ -122,9 +106,6 @@ class TestManagementConfig:
         # get the configuration
         r = client.get_key_value_pair_store(device_id)
         data = r.to_dict()
-        assert {
-            "id": device_id,
-            "actual": None,
-            "expected": [],
-            "report_ts": "0001-01-01T00:00:00Z",
-        } == {k: data[k] for k in ("id", "actual", "expected", "report_ts")}
+        assert {"actual": None, "expected": {},} == {
+            k: data[k] for k in ("actual", "expected")
+        }
